@@ -1,2 +1,14 @@
-# jwt-project
-A demo for an article written about JWT authentication
+# Testmore-Server
+Uses JWT Auth on MongoDB 
+
+## Installation
+
+```bash
+npm install
+```
+
+## Running
+
+```bash
+npm run start
+```
