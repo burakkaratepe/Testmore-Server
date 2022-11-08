@@ -3,13 +3,68 @@ require("./config/database").connect();
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cors = require('cors');
+require("./device");
+require("./socket");
 
 const User = require("./model/user");
-const auth = require("./middleware/auth");
+const { verifyToken, isAuthenticated } = require("./middleware/auth");
 
 const app = express();
 
 app.use(express.json({ limit: "50mb" }));
+
+app.use(cors({
+  origin: '*',
+  credentials: true,
+}));
+
+app.listen(3000, () => {
+  console.log("Server is listening 3000 port");
+});
+
+//app.use("/assets", express.static(path.resolve(__dirname, "frontend", "assets")));
+
+app.use("/api/*", verifyToken, function (req, res, next) {
+  console.log(`Incoming request to ${req.url} with ${JSON.stringify(req.body)}`);
+  next();
+  res.on('finish', async () => {
+    console.log(`Responsed ${req.url} with ${JSON.stringify(req.body)}`);
+  });
+});
+
+// app.get('/login.html', function (req, res) {
+//   res.sendFile(path.resolve(__dirname, "frontend", "pages", "login.html"));
+// });
+
+app.get("/isAuthenticated", async (req, res) => {
+  return await isAuthenticated(req, res);
+});
+
+app.get("/api/device/getDevices", async (req, res) => {
+  require("./device")
+    .getDevices()
+    .then((devices) => {
+      res.status(201).json(devices);
+    });
+});
+
+app.post("/api/device/runTestOnMobileDevice", async (req, res) => {
+  //TODO: startTestOnMobileDevice method will be written in to device class
+  console.log("test run is starting for device has " + req.body.device.udid + " device");
+  require("./device")
+    .startTestOnMobileDevice(req.body.device)
+    .then((testState) => {
+      res.status(201).json(testState);
+    })
+    .catch((error) => {
+      res.status(404).json(error);
+    });
+})
+
+// app.get('/*', function (req, res) {
+//   res.sendFile(path.resolve(__dirname, "frontend", "index.html"));
+// });
 
 app.post("/register", async (req, res) => {
   try {
@@ -18,6 +73,7 @@ app.post("/register", async (req, res) => {
 
     // Validate user input
     if (!(email && password && first_name && last_name)) {
+      console.log(req.body);
       res.status(400).send("All input is required");
     }
 
@@ -84,16 +140,12 @@ app.post("/login", async (req, res) => {
       user.token = token;
 
       // user
-      res.status(200).json(user);
+      return res.status(200).json(user);
     }
     res.status(400).send("Invalid Credentials");
   } catch (err) {
     console.log(err);
   }
-});
-
-app.get("/welcome", auth, (req, res) => {
-  res.status(200).send("Welcome 🙌 ");
 });
 
 // This should be the last route else any after it won't work
